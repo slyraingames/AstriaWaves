@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astria Waves</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            /* The radial gradient is now a fallback for the canvas */
+            background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+            background-size: 2rem 2rem;
+            overflow-x: hidden;
+        }
+        .glassmorphic {
+            background-color: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .header-glass { border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .footer-glass { border-top: 1px solid rgba(255, 255, 255, 0.1); }
+        .logo-img[src]:not([src=""]) { display: block; }
+        .logo-img[src=""]::before, .logo-img:not([src])::before { content: 'Astria Waves'; display: block; text-align: center; font-size: 2rem; font-weight: bold; color: #fff; }
+        .track-card { display: flex; flex-direction: column; }
+        .track-card-content { flex-grow: 1; }
+        
+        #player-overlay, #dropdown-menu { transition: opacity 0.3s ease-in-out; }
+        #player-bg-image { transition: opacity 0.5s ease-in-out; }
+
+        input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
+        input[type="range"]::-webkit-slider-runnable-track { background: rgba(255, 255, 255, 0.3); height: 6px; border-radius: 3px; }
+        input[type="range"]::-moz-range-track { background: rgba(255, 255, 255, 0.3); height: 6px; border-radius: 3px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; margin-top: -6px; background-color: #fff; height: 18px; width: 18px; border-radius: 50%; }
+        input[type="range"]::-moz-range-thumb { border: none; border-radius: 50%; background-color: #fff; height: 18px; width: 18px; }
+        
+        .control-btn.active svg { color: #a78bfa; }
+        #cymatics-canvas { width: 100%; height: 100%; display: block; }
+
+        /* Page content styling */
+        .page-content h2 { font-size: 1.875rem; font-weight: 700; margin-bottom: 1.5rem; color: #fff; }
+        .page-content h3 { font-size: 1.5rem; font-weight: 600; margin-top: 2rem; margin-bottom: 1rem; color: #e5e7eb; }
+        .page-content p, .page-content li { font-size: 1rem; line-height: 1.75; color: #d1d5db; margin-bottom: 1rem; }
+        .page-content a { color: #a78bfa; text-decoration: underline; }
+        .page-content a:hover { color: #c4b5fd; }
+        .page-content ul { list-style-position: inside; padding-left: 1rem; }
+        
+        /* Hide scrollbar for carousel */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-gray-200">
+    
+    <canvas id="particle-canvas" class="fixed inset-0 z-0"></canvas>
+
+    <div id="app-container" class="min-h-screen relative z-10">
+        <!-- Header -->
+        <header class="fixed top-0 left-0 right-0 z-30 p-4 flex justify-between items-center glassmorphic header-glass h-20">
+            <button id="menu-btn" class="p-2 rounded-md hover:bg-gray-700 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg></button>
+            <img id="home-btn" src="https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/AppNameLanding.png" alt="Astria Waves App Name" class="h-8 w-auto hidden md:block absolute left-1/2 -translate-x-1/2 cursor-pointer" onerror="this.style.display='none';">
+            <button id="search-btn" class="p-2 rounded-md hover:bg-gray-700 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></button>
+        </header>
+
+        <!-- Main Content -->
+        <main id="main-content" class="pt-24 pb-24 px-4 max-w-7xl mx-auto">
+            <section id="landing-page" class="page-view">
+                <img src="https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/LOGO.png" alt="Astria Waves Logo" class="mx-auto mb-12 w-3/4 max-w-sm logo-img" onerror="this.style.display='none'; this.classList.remove('logo-img');">
+                <div id="track-list-section" class="mb-12 relative">
+                    <h2 id="track-list-title" class="text-3xl font-bold mb-6 text-white text-left">Trending Now</h2>
+                    <div id="track-carousel-wrapper" class="overflow-hidden relative">
+                        <div id="track-container" class="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory no-scrollbar">
+                            <!-- Tracks will be dynamically injected here -->
+                        </div>
+                    </div>
+                    <button id="scroll-left-btn" class="hidden absolute top-1/2 -left-4 md:-left-8 -translate-y-1/2 bg-gray-800/50 hover:bg-purple-600 rounded-full p-2 z-10 transition-colors"><svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                    <button id="scroll-right-btn" class="hidden absolute top-1/2 -right-4 md:-right-8 -translate-y-1/2 bg-gray-800/50 hover:bg-purple-600 rounded-full p-2 z-10 transition-colors"><svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                </div>
+                <div id="categories-section">
+                    <h2 class="text-3xl font-bold mb-4 text-white text-left">Categories</h2>
+                    <div id="category-buttons-container" class="flex flex-wrap gap-4">
+                        <!-- Category buttons will be injected here -->
+                    </div>
+                </div>
+            </section>
+
+            <section id="how-to-use-page" class="page-view hidden page-content">
+                <h2>How To Use The Frequencies</h2>
+                <p>1. Find a quiet place where you won't be disturbed.</p>
+                <p>2. Put on a pair of headphones. (This is important, as some of the frequencies are binaural, meaning they are different in each ear. Headphones will allow you to get the full effect of the frequencies.)</p>
+                <p>3. Close your eyes and relax.</p>
+                <p>4. Listen to the frequency for at least 15 minutes.</p>
+                <p>5. You can listen to the frequencies as often as you like, but it is recommended to listen to them at least once a day for the best results.</p>
+                <h3>Disclaimer</h3>
+                <p>The frequencies on this website are not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of something you have read on this website.</p>
+            </section>
+
+            <section id="about-us-page" class="page-view hidden page-content">
+                 <h2>About Us</h2>
+                 <p>Astria TV Presents : Astria Wave. I am a game developer, video editor, content creator and now a frequency producer. I started Astria Waves as a way to help people, by creating frequencies that can help people in many ways, from anxiety relief, to concentration, to even helping you sleep. I believe in the power of sound, and I hope that my work can help you in some way. Thank you for using Astria Waves.</p>
+            </section>
+
+            <section id="patreon-youtube-page" class="page-view hidden page-content">
+                <h2>Patreon & YouTube</h2>
+                <h3>YouTube</h3>
+                <p>Documentaries, short form content, long form content, conspiracies, expose videos, spiritual content. 50+ Videos, dozens of hours of content to enjoy. <a href="https://www.youtube.com/@AstriaTVTruthExposed" target="_blank" rel="noopener noreferrer">Visit YouTube Channel</a></p>
+                <h3>Patreon</h3>
+                <p>I have just started my patreon in August 2024, I Post free uncensored, unfiltered long form, short form and documentary style content there. I can speak freely without fear of being banned, I can cover more serious topics on my Patreon. My plan for this year is to get several patreon exclusive documentaries and video series going on there so make sure to join. I also host my Store on patreon where you can support me by buying frequency soundtracks there (so you can download them and use them offline without needing to use this website).</p>
+                <div class="flex space-x-4">
+                    <a href="https://www.patreon.com/c/astriatvexposed" target="_blank" rel="noopener noreferrer">Visit Patreon Page</a>
+                    <a href="https://www.patreon.com/c/astriatvexposed/shop" target="_blank" rel="noopener noreferrer">Visit Patreon Shop</a>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="fixed bottom-0 left-0 right-0 z-20 p-4 glassmorphic footer-glass">
+            <div class="flex justify-center items-center space-x-8">
+                <a href="https://www.patreon.com/c/astriatvexposed" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition-colors font-medium">Patreon</a>
+                <a href="https://www.youtube.com/@AstriaTVTruthExposed" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition-colors font-medium">YouTube</a>
+                <a href="https://slyheegames.itch.io/" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition-colors font-medium">Itch.io</a>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Dropdown Menu -->
+    <div id="dropdown-menu" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-40 opacity-0">
+        <div class="w-full max-w-xs h-full bg-gray-900 p-6 shadow-xl">
+            <button id="close-menu-btn" class="absolute top-5 right-5 text-gray-400 hover:text-white">&times;</button>
+            <nav class="mt-10 flex flex-col space-y-4">
+                <button data-page="landing-page" class="nav-btn text-left text-2xl font-bold text-gray-300 hover:text-white transition-colors">Home</button>
+                <button data-page="how-to-use-page" class="nav-btn text-left text-2xl font-bold text-gray-300 hover:text-white transition-colors">How to Use</button>
+                <button data-page="about-us-page" class="nav-btn text-left text-2xl font-bold text-gray-300 hover:text-white transition-colors">About Us</button>
+                <button data-page="patreon-youtube-page" class="nav-btn text-left text-2xl font-bold text-gray-300 hover:text-white transition-colors">Patreon/YouTube</button>
+                <a href="https://www.patreon.com/c/astriatvexposed/shop" target="_blank" rel="noopener noreferrer" class="text-left text-2xl font-bold text-gray-300 hover:text-white transition-colors">Shop</a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Player Overlay -->
+    <div id="player-overlay" class="hidden fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-4 opacity-0">
+        <div id="player-bg-image" class="absolute inset-0 bg-cover bg-center filter blur-xl scale-110 opacity-30"></div>
+        <button id="close-player-btn" class="absolute top-5 right-5 text-white p-2 rounded-full bg-black/30 hover:bg-black/60 transition-colors z-30"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+        <div class="relative z-10 w-full max-w-md flex flex-col items-center text-center h-full justify-around">
+            <div id="cymatics-container" class="w-full h-1/2 max-h-80 bg-black/20 rounded-lg border border-white/10 overflow-hidden"><canvas id="cymatics-canvas"></canvas></div>
+            <div class="w-full flex flex-col items-center">
+                <h2 id="player-track-name" class="text-3xl font-bold text-white mb-2">Track Name</h2>
+                <div class="w-full mt-4">
+                    <input type="range" id="progress-bar" value="0" class="w-full">
+                    <div class="flex justify-between text-xs text-gray-300 mt-1"><span id="current-time">0:00</span><span id="total-time">0:00</span></div>
+                </div>
+                <div class="flex items-center justify-evenly w-full max-w-xs mt-4">
+                    <button id="loop-btn" class="control-btn p-2 text-white/70 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg></button>
+                    <button id="prev-btn" class="control-btn p-2 text-white/80 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="currentColor" viewBox="0 0 20 20"><path d="M8.445 14.832A1 1 0 0010 14.03V5.97a1 1 0 00-1.555-.832L4.12 9.168a1 1 0 000 1.664l4.325 4.001zM15.89 9.168a1 1 0 000 1.664l4.324 4.001A1 1 0 0022 14.03V5.97a1 1 0 00-1.555-.832l-4.324 4.032z" transform="translate(-3 -3)"/></svg></button>
+                    <button id="play-pause-btn" class="control-btn p-2 text-white bg-purple-600 rounded-full shadow-lg"><svg id="play-icon" xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg><svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm7 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z"/></svg></button>
+                    <button id="next-btn" class="control-btn p-2 text-white/80 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="currentColor" viewBox="0 0 20 20"><path d="M11.555 5.168A1 1 0 0010 5.97v8.06a1 1 0 001.555.832l4.325-4.032a1 1 0 000-1.664L11.555 5.168zM4.11 5.168A1 1 0 002.555 5.97v8.06a1 1 0 001.555.832l4.325-4.032a1 1 0 000-1.664L4.11 5.168z" transform="translate(-1 -3)"/></svg></button>
+                    <button id="volume-btn" class="control-btn p-2 text-white/70 hover:text-white transition-colors"><svg id="volume-icon-unmuted" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg><svg id="volume-icon-muted" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" /><path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="audio-player" crossorigin="anonymous"></audio>
+    <audio id="click-sound" src="https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/(A)%20Item%20gather.ogg" preload="auto"></audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tracks = [
+                { id: 1, name: 'Neuro-Calm 204hz', categories: ['healing', 'relaxing'], plays: 4000, coverArt: 'https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/AnxietyRelief.png', audioSrc: 'https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/Dual_Frequency_Anxiety_Relif(204hz).wav', purchaseUrl: 'https://www.patreon.com/posts/neuro-calm-204hz-136445687?source=storefront' },
+                { id: 2, name: 'Neuro-Nirvana 108', categories: ['healing', 'relaxing'], plays: 879, coverArt: 'https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/NaturalHealing.png', audioSrc: 'https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/100hz_Left_104hz_Right_LoveFrequency_AnxietyRelif.wav', purchaseUrl: 'https://www.patreon.com/posts/neuro-nirvana-136449292?source=storefront' },
+                { id: 3, name: 'Aura Cleanse 440hz', categories: ['healing', 'relaxing', 'dreaming'], plays: 6785, coverArt: 'https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/CalmingTones.png', audioSrc: 'https://raw.githubusercontent.com/slyraingames/AstriaWaves/main/Sea_Rain.wav', purchaseUrl: 'https://www.patreon.com/posts/aura-cleanse-136449751?source=storefront' }
+            ];
+
+            // DOM Elements
+            const allDOMElements = {
+                trackContainer: document.getElementById('track-container'),
+                trackListTitle: document.getElementById('track-list-title'),
+                categoryButtonsContainer: document.getElementById('category-buttons-container'),
+                scrollLeftBtn: document.getElementById('scroll-left-btn'),
+                scrollRightBtn: document.getElementById('scroll-right-btn'),
+                playerOverlay: document.getElementById('player-overlay'),
+                playerBgImage: document.getElementById('player-bg-image'),
+                closePlayerBtn: document.getElementById('close-player-btn'),
+                playerTrackName: document.getElementById('player-track-name'),
+                progressBar: document.getElementById('progress-bar'),
+                currentTimeEl: document.getElementById('current-time'),
+                totalTimeEl: document.getElementById('total-time'),
+                playPauseBtn: document.getElementById('play-pause-btn'),
+                playIcon: document.getElementById('play-icon'),
+                pauseIcon: document.getElementById('pause-icon'),
+                prevBtn: document.getElementById('prev-btn'),
+                nextBtn: document.getElementById('next-btn'),
+                loopBtn: document.getElementById('loop-btn'),
+                volumeBtn: document.getElementById('volume-btn'),
+                volumeIconUnmuted: document.getElementById('volume-icon-unmuted'),
+                volumeIconMuted: document.getElementById('volume-icon-muted'),
+                audioPlayer: document.getElementById('audio-player'),
+                clickSound: document.getElementById('click-sound'),
+                mainContent: document.getElementById('main-content'),
+                cymaticsCanvas: document.getElementById('cymatics-canvas'),
+                cymaticsCtx: document.getElementById('cymatics-canvas').getContext('2d'),
+                particleCanvas: document.getElementById('particle-canvas'),
+                particleCtx: document.getElementById('particle-canvas').getContext('2d'),
+                menuBtn: document.getElementById('menu-btn'),
+                homeBtn: document.getElementById('home-btn'),
+                dropdownMenu: document.getElementById('dropdown-menu'),
+                closeMenuBtn: document.getElementById('close-menu-btn'),
+                pageViews: document.querySelectorAll('.page-view')
+            };
+
+            let currentTrackIndex = 0, isPlaying = false, audioContextInitialized = false;
+            let audioContext, analyser, source, dataArray, animationFrameId;
+            let particlesArray = [];
+
+            function initAudioContext() {
+                if (audioContextInitialized) return;
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                source = audioContext.createMediaElementSource(allDOMElements.audioPlayer);
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                audioContextInitialized = true;
+            }
+
+            function playClickSound() {
+                const { clickSound } = allDOMElements;
+                if (clickSound) {
+                    clickSound.currentTime = 0;
+                    clickSound.playbackRate = 0.9 + Math.random() * 0.2;
+                    clickSound.play();
+                }
+            }
+
+            function updateCarouselButtons(container) {
+                const { scrollLeftBtn, scrollRightBtn } = allDOMElements;
+                const showButtons = container.scrollWidth > container.clientWidth;
+                scrollLeftBtn.classList.toggle('hidden', !showButtons);
+                scrollRightBtn.classList.toggle('hidden', !showButtons);
+            }
+
+            function renderTracks(trackList, containerId) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                container.innerHTML = trackList.map(track => `
+                    <div class="track-card w-1/2 sm:w-1/3 flex-shrink-0 snap-start bg-gray-800/50 rounded-lg overflow-hidden shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        <img src="${track.coverArt}" alt="${track.name} Cover Art" class="w-full h-auto aspect-square object-cover" onerror="this.src='https://placehold.co/300x300/1f2937/9ca3af?text=Image+Not+Found';">
+                        <div class="p-4 track-card-content flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-bold text-white text-md mb-1 truncate">${track.name}</h3>
+                                <div class="flex items-center text-gray-400 text-xs mb-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.062 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                    <span id="plays-count-${track.id}">${track.plays.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-col space-y-2">
+                                 <button class="play-btn w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors" data-track-id="${track.id}">Play</button>
+                                 <a href="${track.purchaseUrl}" target="_blank" rel="noopener noreferrer" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors text-center text-sm">Buy on Patreon</a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                setTimeout(() => updateCarouselButtons(container), 0);
+            }
+
+            function renderCategories() {
+                const { categoryButtonsContainer } = allDOMElements;
+                const allCategories = [...new Set(tracks.flatMap(track => track.categories))];
+                categoryButtonsContainer.innerHTML = allCategories.map(cat => `
+                    <button data-category="${cat}" class="category-btn bg-gray-700 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                        ${cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </button>
+                `).join('');
+            }
+
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+            }
+
+            function updateProgressBar() {
+                const { audioPlayer, progressBar, currentTimeEl } = allDOMElements;
+                if (audioPlayer.duration) {
+                    progressBar.value = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                    currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+                }
+            }
+            
+            function setPlayState(play) {
+                const { audioPlayer, playIcon, pauseIcon } = allDOMElements;
+                if (play && audioContext && audioContext.state === 'suspended') { audioContext.resume(); }
+                isPlaying = play;
+                if (play) {
+                    audioPlayer.play();
+                    playIcon.classList.add('hidden'); pauseIcon.classList.remove('hidden');
+                    startCymaticsAnimation();
+                } else {
+                    audioPlayer.pause();
+                    playIcon.classList.remove('hidden'); pauseIcon.classList.add('hidden');
+                    stopCymaticsAnimation();
+                }
+            }
+            
+            function incrementPlayCount(trackId) {
+                const track = tracks.find(t => t.id === trackId);
+                if (track) {
+                    track.plays++;
+                    const countElement = document.getElementById(`plays-count-${trackId}`);
+                    if (countElement) {
+                        countElement.textContent = track.plays.toLocaleString();
+                    }
+                }
+            }
+
+            function loadTrack(trackIndex) {
+                const { playerTrackName, playerBgImage, audioPlayer, totalTimeEl } = allDOMElements;
+                currentTrackIndex = trackIndex;
+                const track = tracks[trackIndex];
+                incrementPlayCount(track.id);
+                playerTrackName.textContent = track.name;
+                playerBgImage.style.backgroundImage = `url(${track.coverArt})`;
+                audioPlayer.src = track.audioSrc;
+                totalTimeEl.textContent = '0:00';
+                audioPlayer.onloadedmetadata = () => {
+                    totalTimeEl.textContent = formatTime(audioPlayer.duration);
+                    updateProgressBar();
+                    setPlayState(true);
+                };
+            }
+
+            function playNext() { loadTrack((currentTrackIndex + 1) % tracks.length); }
+            function playPrev() { loadTrack((currentTrackIndex - 1 + tracks.length) % tracks.length); }
+
+            function openPlayer() {
+                if (!audioContextInitialized) initAudioContext();
+                allDOMElements.playerOverlay.classList.remove('hidden');
+                setTimeout(() => allDOMElements.playerOverlay.classList.remove('opacity-0'), 10);
+                allDOMElements.mainContent.style.filter = 'blur(5px)';
+                resizeCymaticsCanvas();
+            }
+
+            function closePlayer() {
+                allDOMElements.playerOverlay.classList.add('opacity-0');
+                allDOMElements.mainContent.style.filter = '';
+                setTimeout(() => allDOMElements.playerOverlay.classList.add('hidden'), 300);
+                setPlayState(false);
+            }
+
+            function resizeCymaticsCanvas() {
+                const { cymaticsCanvas } = allDOMElements;
+                const container = document.getElementById('cymatics-container');
+                cymaticsCanvas.width = container.clientWidth;
+                cymaticsCanvas.height = container.clientHeight;
+            }
+
+            function startCymaticsAnimation() { if (!animationFrameId) { animationFrameId = requestAnimationFrame(drawCymatics); } }
+            function stopCymaticsAnimation() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; allDOMElements.cymaticsCtx.fillStyle = 'rgba(17, 24, 39, 0.1)'; allDOMElements.cymaticsCtx.fillRect(0, 0, allDOMElements.cymaticsCanvas.width, allDOMElements.cymaticsCanvas.height); } }
+            
+            function drawCymatics() {
+                if (!isPlaying) return;
+                animationFrameId = requestAnimationFrame(drawCymatics);
+                analyser.getByteFrequencyData(dataArray);
+                const { cymaticsCanvas, cymaticsCtx } = allDOMElements;
+                const avg = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                cymaticsCtx.fillStyle = 'rgba(17, 24, 39, 0.05)';
+                cymaticsCtx.fillRect(0, 0, cymaticsCanvas.width, cymaticsCanvas.height);
+                const centerX = cymaticsCanvas.width / 2, centerY = cymaticsCanvas.height / 2;
+                const baseRadius = Math.min(cymaticsCanvas.width, cymaticsCanvas.height) / 5;
+                const pulseRadius = baseRadius + (avg / 255) * 20;
+                cymaticsCtx.strokeStyle = `rgba(255, 255, 255, ${0.1 + (avg / 255) * 0.2})`;
+                cymaticsCtx.lineWidth = 1 + (avg / 255);
+                drawCircle(centerX, centerY, pulseRadius);
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * 2 * Math.PI;
+                    drawCircle(centerX + pulseRadius * Math.cos(angle), centerY + pulseRadius * Math.sin(angle), pulseRadius);
+                }
+                const particleCount = 100;
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = Math.random() * Math.PI * 2, distance = Math.random() * (pulseRadius * 2.5);
+                    const x = centerX + Math.cos(angle) * distance, y = centerY + Math.sin(angle) * distance;
+                    const size = 1 + (dataArray[i % dataArray.length] / 255) * 2;
+                    const opacity = 0.2 + (dataArray[i % dataArray.length] / 255) * 0.6;
+                    cymaticsCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                    cymaticsCtx.beginPath(); cymaticsCtx.arc(x, y, size / 2, 0, Math.PI * 2); cymaticsCtx.fill();
+                }
+            }
+            function drawCircle(x, y, radius) { const { cymaticsCtx } = allDOMElements; cymaticsCtx.beginPath(); cymaticsCtx.arc(x, y, radius, 0, 2 * Math.PI); cymaticsCtx.stroke(); }
+            
+            // --- Particle Background ---
+            const PARTICLE_COLORS = ['#a78bfa', '#c4b5fd', '#6d28d9', '#e0e7ff'];
+            function initParticles() {
+                const { particleCanvas } = allDOMElements;
+                particleCanvas.width = window.innerWidth;
+                particleCanvas.height = window.innerHeight;
+                particlesArray = [];
+                const numberOfParticles = (particleCanvas.width * particleCanvas.height) / 9000;
+                for (let i = 0; i < numberOfParticles; i++) {
+                    const size = Math.random() * 2 + 1;
+                    const x = Math.random() * particleCanvas.width;
+                    const y = Math.random() * particleCanvas.height;
+                    const directionY = Math.random() * 0.8 + 0.2; // Upward speed
+                    const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
+                    particlesArray.push({ x, y, size, directionY, color });
+                }
+            }
+
+            function animateParticles() {
+                const { particleCtx, particleCanvas } = allDOMElements;
+                particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+                for (let i = 0; i < particlesArray.length; i++) {
+                    let p = particlesArray[i];
+                    p.y -= p.directionY;
+                    if (p.y < 0) {
+                        p.y = particleCanvas.height + p.size;
+                        p.x = Math.random() * particleCanvas.width;
+                    }
+                    particleCtx.beginPath();
+                    particleCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2, false);
+                    particleCtx.fillStyle = p.color;
+                    particleCtx.fill();
+                }
+                requestAnimationFrame(animateParticles);
+            }
+
+            function showPage(pageId) {
+                allDOMElements.pageViews.forEach(page => page.classList.toggle('hidden', page.id !== pageId));
+                if (pageId === 'landing-page') {
+                    allDOMElements.trackListTitle.textContent = 'Trending Now';
+                    renderTracks(tracks, 'track-container');
+                }
+            }
+
+            function toggleMenu(show = true) {
+                const { dropdownMenu } = allDOMElements;
+                if (show) {
+                    dropdownMenu.classList.remove('hidden');
+                    setTimeout(() => dropdownMenu.classList.remove('opacity-0'), 10);
+                } else {
+                    dropdownMenu.classList.add('opacity-0');
+                    setTimeout(() => dropdownMenu.classList.add('hidden'), 300);
+                }
+            }
+
+            // --- Event Listeners ---
+            document.body.addEventListener('click', (e) => {
+                if (e.target.closest('button, a')) {
+                    playClickSound();
+                }
+            });
+
+            allDOMElements.trackContainer.addEventListener('click', e => {
+                const playButton = e.target.closest('.play-btn');
+                if (playButton) {
+                    const trackId = parseInt(playButton.dataset.trackId);
+                    const trackIndex = tracks.findIndex(t => t.id === trackId);
+                    if (trackIndex !== -1) { openPlayer(); loadTrack(trackIndex); }
+                }
+            });
+
+            allDOMElements.categoryButtonsContainer.addEventListener('click', e => {
+                const categoryBtn = e.target.closest('.category-btn');
+                if (categoryBtn) {
+                    const category = categoryBtn.dataset.category;
+                    const filteredTracks = tracks.filter(track => track.categories.includes(category));
+                    renderTracks(filteredTracks, 'track-container');
+                    allDOMElements.trackListTitle.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+                }
+            });
+
+            allDOMElements.scrollLeftBtn.addEventListener('click', () => {
+                allDOMElements.trackContainer.scrollBy({ left: -300, behavior: 'smooth' });
+            });
+            allDOMElements.scrollRightBtn.addEventListener('click', () => {
+                allDOMElements.trackContainer.scrollBy({ left: 300, behavior: 'smooth' });
+            });
+
+            allDOMElements.playPauseBtn.addEventListener('click', () => setPlayState(!isPlaying));
+            allDOMElements.audioPlayer.addEventListener('timeupdate', updateProgressBar);
+            allDOMElements.audioPlayer.addEventListener('ended', () => { 
+                if (allDOMElements.audioPlayer.loop) {
+                    incrementPlayCount(tracks[currentTrackIndex].id);
+                } else {
+                    playNext();
+                }
+            });
+            allDOMElements.progressBar.addEventListener('input', () => { if (allDOMElements.audioPlayer.duration) allDOMElements.audioPlayer.currentTime = (allDOMElements.progressBar.value / 100) * allDOMElements.audioPlayer.duration; });
+            allDOMElements.nextBtn.addEventListener('click', playNext);
+            allDOMElements.prevBtn.addEventListener('click', playPrev);
+            allDOMElements.loopBtn.addEventListener('click', () => { allDOMElements.audioPlayer.loop = !allDOMElements.audioPlayer.loop; allDOMElements.loopBtn.classList.toggle('active', allDOMElements.audioPlayer.loop); });
+            allDOMElements.volumeBtn.addEventListener('click', () => { allDOMElements.audioPlayer.muted = !allDOMElements.audioPlayer.muted; allDOMElements.volumeIconUnmuted.classList.toggle('hidden', allDOMElements.audioPlayer.muted); allDOMElements.volumeIconMuted.classList.toggle('hidden', !allDOMElements.audioPlayer.muted); });
+            allDOMElements.closePlayerBtn.addEventListener('click', closePlayer);
+            
+            allDOMElements.menuBtn.addEventListener('click', () => toggleMenu(true));
+            allDOMElements.closeMenuBtn.addEventListener('click', () => toggleMenu(false));
+            allDOMElements.dropdownMenu.addEventListener('click', (e) => {
+                const navBtn = e.target.closest('.nav-btn');
+                if (navBtn) {
+                    showPage(navBtn.dataset.page);
+                    toggleMenu(false);
+                }
+                 if (e.target === allDOMElements.dropdownMenu) {
+                    toggleMenu(false);
+                }
+            });
+            allDOMElements.homeBtn.addEventListener('click', () => showPage('landing-page'));
+
+            window.addEventListener('resize', () => {
+                resizeCymaticsCanvas();
+                updateCarouselButtons(allDOMElements.trackContainer);
+                initParticles();
+            });
+
+            // --- Initialization ---
+            allDOMElements.audioPlayer.volume = 0.4;
+            allDOMElements.clickSound.volume = 0.5;
+            renderTracks(tracks, 'track-container');
+            renderCategories();
+            showPage('landing-page');
+            initParticles();
+            animateParticles();
+        });
+    </script>
+</body>
+</html>
